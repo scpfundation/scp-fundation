@@ -1,0 +1,1139 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<title>SCP Fundacja — Terminal SITE‑64</title>
+
+<style>
+body {
+    background: black;
+    color: #00ff9d;
+    font-family: "Courier New", monospace;
+    margin: 0;
+    padding: 0;
+    opacity: 0;
+    animation: fadeInBody 2s forwards;
+}
+@keyframes fadeInBody { to { opacity: 1; } }
+
+.cursor {
+    display: inline-block;
+    width: 10px;
+    background: #00ff9d;
+    animation: blink 0.8s infinite;
+}
+@keyframes blink {
+    0% { opacity: 1; }
+    50% { opacity: 0; }
+    100% { opacity: 1; }
+}
+
+#boot {
+    font-size: 18px;
+    white-space: pre-line;
+    text-align: center;
+    margin-top: 80px;
+}
+
+/* Wrapper */
+#terminal-wrapper {
+    display: none;
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
+}
+
+/* Sidebar */
+#sidebarToggle {
+    position: fixed;
+    top: 10px;
+    left: 10px;
+    z-index: 1001;
+    background: #00ff9d;
+    color: black;
+    border: none;
+    padding: 6px 10px;
+    cursor: pointer;
+    font-family: "Courier New", monospace;
+    font-size: 14px;
+}
+#sidebar {
+    position: fixed;
+    top: 0;
+    left: -260px;
+    width: 260px;
+    height: 100%;
+    background: #020b06;
+    border-right: 2px solid #00ff9d;
+    color: #00ff9d;
+    padding-top: 50px;
+    transition: left 0.3s ease;
+    z-index: 1000;
+}
+#sidebar.open { left: 0; }
+
+.sidebar-item {
+    padding: 8px 15px;
+    cursor: pointer;
+    border-bottom: 1px solid #004422;
+    font-size: 13px;
+}
+.sidebar-item:hover { background: #00331a; }
+.sidebar-item.active { background: #00552a; }
+
+/* Terminal */
+#terminal {
+    width: 1000px;
+    margin: 60px auto 20px auto;
+    border: 2px solid #00ff9d;
+    padding: 20px;
+    background: #000000dd;
+    color: #00ff9d;
+}
+
+/* Panels */
+.panel-box {
+    border: 1px solid #00ff9d;
+    padding: 10px;
+    margin-top: 10px;
+    font-size: 13px;
+}
+.panel-card { border-color: #ffffff; }
+.panel-db { border-color: #00bfff; }
+.panel-write { border-color: #00ff7f; }
+.panel-admin { border-color: #ff4500; }
+.panel-archive { border-color: #ffb000; }
+.panel-time { border-color: #ffd700; }
+.panel-proc { border-color: #ff69b4; }
+.panel-acl { border-color: #ff6347; }
+.panel-comm { border-color: #1e90ff; }
+.panel-scp { border-color: #ba55d3; }
+.panel-profile { border-color: #adff2f; }
+.panel-tasks { border-color: #ffa500; }
+.panel-hr { border-color: #ff1493; }
+.panel-logs { border-color: #aaaaaa; }
+
+input, select, textarea {
+    width: 95%;
+    padding: 6px;
+    margin: 4px 0;
+    background: black;
+    border: 1px solid #00ff9d;
+    color: #00ff9d;
+    font-family: "Courier New", monospace;
+    font-size: 13px;
+    resize: vertical;
+}
+button {
+    padding: 6px 12px;
+    background: #00ff9d;
+    color: black;
+    border: none;
+    cursor: pointer;
+    margin-top: 5px;
+    font-family: "Courier New", monospace;
+    font-size: 13px;
+}
+button:hover { background: white; }
+label { display: block; margin-top: 6px; }
+
+#error { color: red; margin-top: 10px; }
+
+#logs {
+    text-align: left;
+    margin-top: 10px;
+    border: 1px solid #00ff9d;
+    padding: 10px;
+    height: 120px;
+    overflow-y: scroll;
+    font-size: 11px;
+}
+#userList { text-align: left; font-size: 11px; }
+
+.report-item {
+    border-bottom: 1px solid #00bfff;
+    padding: 6px 0;
+}
+.report-meta {
+    font-size: 11px;
+    color: #7fffd4;
+}
+.report-title {
+    font-weight: bold;
+    font-size: 13px;
+}
+.report-attachments {
+    font-size: 11px;
+    color: #9cf;
+}
+
+/* Modal raportu */
+#reportModalOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: #000000cc;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1100;
+}
+#reportModal {
+    width: 70%;
+    max-height: 80%;
+    background: #020b06;
+    border: 2px solid #00ff9d;
+    padding: 15px;
+    overflow-y: auto;
+    color: #00ff9d;
+    font-size: 13px;
+}
+.modal-close {
+    float: right;
+    cursor: pointer;
+    color: #ff5555;
+}
+
+/* Login */
+#login-screen { text-align: center; }
+</style>
+</head>
+<body>
+
+<div id="boot"></div>
+
+<div id="terminal-wrapper">
+    <button id="sidebarToggle" onclick="toggleSidebar()">≡ MENU</button>
+
+    <div id="sidebar">
+        <div class="sidebar-item active" onclick="showSection('card')">🪪 Karta dostępu</div>
+        <div class="sidebar-item" onclick="showSection('db')">📁 Baza danych raportów</div>
+        <div class="sidebar-item" onclick="showSection('write')">✏️ Napisz raport</div>
+        <div class="sidebar-item" onclick="showSection('archive')">🗄 Archiwum raportów</div>
+        <div class="sidebar-item" onclick="showSection('scp')">📚 Archiwum SCP</div>
+        <div class="sidebar-item" onclick="showSection('proc')">📜 Procedury</div>
+        <div class="sidebar-item" onclick="showSection('time')">⏱ Kontrola czasu</div>
+        <div class="sidebar-item" onclick="showSection('tasks')">✅ Zadania</div>
+        <div class="sidebar-item" onclick="showSection('comm')">💬 Komunikacja</div>
+        <div class="sidebar-item" onclick="showSection('profile')">👤 Profil użytkownika</div>
+        <div class="sidebar-item" onclick="showSection('hr')">👥 Zarządzanie personelem</div>
+        <div class="sidebar-item" onclick="showSection('acl')">🔐 Kontrola uprawnień</div>
+        <div class="sidebar-item" onclick="showSection('logs')">📊 Logi systemowe</div>
+        <div class="sidebar-item" onclick="showSection('admin')">🛠 Panel admina</div>
+    </div>
+
+    <div id="terminal">
+        <h1>SITE‑64 // TERMINAL DOSTĘPU</h1>
+
+        <div id="login-screen">
+            <p>DOSTĘP TYLKO DLA UPOWAŻNIONEGO PERSONELU</p>
+            <label>NAZWA UŻYTKOWNIKA:</label>
+            <input id="username" type="text">
+            <label>HASŁO:</label>
+            <input id="password" type="password">
+            <button onclick="login()">ZALOGUJ</button>
+            <p id="error"></p>
+        </div>
+
+        <div id="panel" style="display:none;">
+
+            <!-- KARTA DOSTĘPU -->
+            <div id="cardPanel" class="panel-box panel-card">
+                <h3>KARTA DOSTĘPU</h3>
+                <p><b>Użytkownik:</b> <span id="user"></span></p>
+                <p><b>Poziom dostępu:</b> <span id="clearance"></span></p>
+                <p><b>Oddział / Klasa:</b> <span id="dept"></span></p>
+                <p><b>ID:</b> <span id="cardID"></span></p>
+                <div style="margin-top:10px; background:#00ff9d; height:30px;"></div>
+            </div>
+
+            <!-- BAZA DANYCH RAPORTÓW -->
+            <div id="dbPanel" class="panel-box panel-db" style="display:none;">
+                <h3>BAZA DANYCH RAPORTÓW</h3>
+                <p>Wyświetlane są wszystkie raporty, do których masz uprawnienia.</p>
+                <div id="reportsList"></div>
+            </div>
+
+            <!-- NAPISZ RAPORT -->
+            <div id="writePanel" class="panel-box panel-write" style="display:none;">
+                <h3>NAPISZ RAPORT</h3>
+                <label>Tytuł raportu:</label>
+                <input id="reportTitle" type="text">
+                <label>Treść raportu:</label>
+                <textarea id="reportContent" rows="4"></textarea>
+                <label>Poziom klasyfikacji raportu:</label>
+                <select id="reportClass">
+                    <option value="1">Poziom 1 — Jawne w oddziale</option>
+                    <option value="2">Poziom 2 — Poufne</option>
+                    <option value="3">Poziom 3 — Tajne</option>
+                    <option value="4">Poziom 4 — Ściśle tajne</option>
+                    <option value="5">Poziom 5 — Dyrekcja oddziału</option>
+                    <option value="Omni">Omni — Tylko dla Omni</option>
+                </select>
+                <label>Hasło szyfrujące (dla raportów 4/5/Omni – opcjonalne):</label>
+                <input id="reportEncPass" type="password">
+                <label>Załączniki (tylko nazwy, zapisane na stałe):</label>
+                <input id="reportFiles" type="file" multiple>
+                <button onclick="createReport()">ZAPISZ RAPORT</button>
+                <p id="reportError" style="color:red;"></p>
+            </div>
+
+            <!-- ARCHIWUM RAPORTÓW -->
+            <div id="archivePanel" class="panel-box panel-archive" style="display:none;">
+                <h3>ARCHIWUM RAPORTÓW</h3>
+                <label>Filtr: ID / autor / oddział / klasyfikacja:</label>
+                <input id="archiveFilter" type="text" placeholder="np. R-123, Jan, MFO, 3">
+                <button onclick="refreshArchiveView()">SZUKAJ</button>
+                <div id="archiveList" style="margin-top:8px;"></div>
+            </div>
+
+            <!-- ARCHIWUM SCP -->
+            <div id="scpPanel" class="panel-box panel-scp" style="display:none;">
+                <h3>ARCHIWUM SCP</h3>
+                <p>Podstawowa baza obiektów SCP (przykładowe wpisy).</p>
+                <div id="scpList"></div>
+            </div>
+
+            <!-- PROCEDURY -->
+            <div id="procPanel" class="panel-box panel-proc" style="display:none;">
+                <h3>PROCEDURY ZABEZPIECZAJĄCE</h3>
+                <p>Widoczne tylko procedury, do których masz poziom dostępu.</p>
+                <div id="procList"></div>
+            </div>
+
+            <!-- KONTROLA CZASU -->
+            <div id="timePanel" class="panel-box panel-time" style="display:none;">
+                <h3>KONTROLA CZASU</h3>
+                <button onclick="registerTime('IN')">ZAREJESTRUJ WEJŚCIE</button>
+                <button onclick="registerTime('OUT')">ZAREJESTRUJ WYJŚCIE</button>
+                <div id="timeLog" style="margin-top:8px;"></div>
+            </div>
+
+            <!-- ZADANIA -->
+            <div id="tasksPanel" class="panel-box panel-tasks" style="display:none;">
+                <h3>ZADANIA</h3>
+                <div id="myTasks"></div>
+                <hr>
+                <div id="taskAdmin" style="display:none;">
+                    <h4>Przydziel zadanie</h4>
+                    <label>Użytkownik:</label>
+                    <select id="taskUser"></select>
+                    <label>Treść zadania:</label>
+                    <input id="taskText" type="text">
+                    <button onclick="assignTask()">PRZYDZIEL</button>
+                </div>
+            </div>
+
+            <!-- KOMUNIKACJA -->
+            <div id="commPanel" class="panel-box panel-comm" style="display:none;">
+                <h3>KOMUNIKACJA WEWNĘTRZNA</h3>
+                <h4>Wyślij wiadomość</h4>
+                <label>Do:</label>
+                <select id="msgTo"></select>
+                <label>Treść:</label>
+                <textarea id="msgText" rows="3"></textarea>
+                <button onclick="sendMessage()">WYŚLIJ</button>
+                <p id="msgError" style="color:red;"></p>
+                <h4>Odebrane</h4>
+                <div id="inbox"></div>
+                <h4>Wysłane</h4>
+                <div id="outbox"></div>
+            </div>
+
+            <!-- PROFIL UŻYTKOWNIKA -->
+            <div id="profilePanel" class="panel-box panel-profile" style="display:none;">
+                <h3>PROFIL UŻYTKOWNIKA</h3>
+                <p><b>Użytkownik:</b> <span id="profName"></span></p>
+                <p><b>Poziom:</b> <span id="profLevel"></span></p>
+                <p><b>Oddział:</b> <span id="profDept"></span></p>
+                <p><b>Liczba raportów:</b> <span id="profReports"></span></p>
+                <p><b>Liczba zadań:</b> <span id="profTasks"></span></p>
+                <p><b>Ostatnie logowanie:</b> <span id="profLastLogin"></span></p>
+            </div>
+
+            <!-- ZARZĄDZANIE PERSONELEM -->
+            <div id="hrPanel" class="panel-box panel-hr" style="display:none;">
+                <h3>ZARZĄDZANIE PERSONELEM</h3>
+                <p>Podgląd personelu (tylko P5/Omni).</p>
+                <div id="hrList"></div>
+            </div>
+
+            <!-- KONTROLA UPRAWNIEŃ -->
+            <div id="aclPanel" class="panel-box panel-acl" style="display:none;">
+                <h3>KONTROLA UPRAWNIEŃ</h3>
+                <p>Tylko Omni może zmieniać poziomy i oddziały.</p>
+                <label>Użytkownik:</label>
+                <select id="aclUser"></select>
+                <label>Nowy poziom:</label>
+                <select id="aclLevel">
+                    <option value="1">Poziom‑1</option>
+                    <option value="2">Poziom‑2</option>
+                    <option value="3">Poziom‑3</option>
+                    <option value="4">Poziom‑4</option>
+                    <option value="5">Poziom‑5</option>
+                    <option value="Omni">Omni</option>
+                </select>
+                <label>Nowy oddział:</label>
+                <select id="aclType">
+                    <option value="Personel Badawczy">Personel Badawczy</option>
+                    <option value="Personel Naukowy">Personel Naukowy</option>
+                    <option value="Personel Ochrony">Personel Ochrony</option>
+                    <option value="Personel Medyczny">Personel Medyczny</option>
+                    <option value="Personel Techniczny">Personel Techniczny</option>
+                    <option value="Personel Administracyjny">Personel Administracyjny</option>
+                    <option value="Personel Etyczny">Personel Etyczny</option>
+                    <option value="MFO">MFO</option>
+                    <option value="ISD">ISD</option>
+                    <option value="IA">IA</option>
+                    <option value="REDACTED">REDACTED</option>
+                </select>
+                <button onclick="applyAcl()">ZASTOSUJ</button>
+                <p id="aclError" style="color:red;"></p>
+            </div>
+
+            <!-- LOGI SYSTEMOWE -->
+            <div id="logsPanel" class="panel-box panel-logs" style="display:none;">
+                <h3>LOGI SYSTEMOWE</h3>
+                <div id="logs"></div>
+            </div>
+
+            <!-- PANEL ADMINA (dodawanie użytkowników) -->
+            <div id="adminPanel" class="panel-box panel-admin" style="display:none;">
+                <h3>PANEL ADMINISTRACYJNY</h3>
+                <h4>Dodaj nowego użytkownika</h4>
+                <label>Nazwa użytkownika:</label>
+                <input id="newUser" type="text">
+                <label>Hasło:</label>
+                <input id="newPass" type="password">
+                <label>Poziom dostępu:</label>
+                <select id="newLevel">
+                    <option value="1">Poziom‑1</option>
+                    <option value="2">Poziom‑2</option>
+                    <option value="3">Poziom‑3</option>
+                    <option value="4">Poziom‑4</option>
+                    <option value="5">Poziom‑5</option>
+                    <option value="Omni">Omni</option>
+                </select>
+                <label>Oddział / Klasa personelu:</label>
+                <select id="newType">
+                    <option value="Personel Badawczy">Personel Badawczy</option>
+                    <option value="Personel Naukowy">Personel Naukowy</option>
+                    <option value="Personel Ochrony">Personel Ochrony</option>
+                    <option value="Personel Medyczny">Personel Medyczny</option>
+                    <option value="Personel Techniczny">Personel Techniczny</option>
+                    <option value="Personel Administracyjny">Personel Administracyjny</option>
+                    <option value="Personel Etyczny">Personel Etyczny</option>
+                    <option value="MFO">MFO</option>
+                    <option value="ISD">ISD</option>
+                    <option value="IA">IA</option>
+                    <option value="REDACTED">REDACTED</option>
+                </select>
+                <button onclick="addUser()">DODAJ UŻYTKOWNIKA</button>
+                <p id="adminError" style="color:red;"></p>
+                <h4>Zarejestrowani użytkownicy</h4>
+                <ul id="userList"></ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL PODGLĄDU RAPORTU -->
+<div id="reportModalOverlay">
+    <div id="reportModal">
+        <span class="modal-close" onclick="closeReportModal()">[X]</span>
+        <h3 id="modalTitle"></h3>
+        <p id="modalMeta" style="font-size:11px;color:#7fffd4;"></p>
+        <pre id="modalContent" style="white-space:pre-wrap;font-family:'Courier New',monospace;"></pre>
+        <p id="modalAttachments" style="font-size:11px;color:#9cf;"></p>
+    </div>
+</div>
+
+<script>
+// --- MAPOWANIE POZIOMÓW ---
+function levelToNum(level) {
+    if (level === "Omni") return 6;
+    const n = parseInt(level);
+    return isNaN(n) ? 0 : n;
+}
+
+// --- UŻYTKOWNICY ---
+let users = [];
+if (localStorage.getItem("scp_users")) {
+    users = JSON.parse(localStorage.getItem("scp_users"));
+} else {
+    users = [
+        { username: "REDACTED", password: "1234", level: "Omni", type: "REDACTED", lastLogin: null }
+    ];
+    localStorage.setItem("scp_users", JSON.stringify(users));
+}
+function saveUsers() { localStorage.setItem("scp_users", JSON.stringify(users)); }
+
+// --- LOGI ---
+let logs = [];
+if (localStorage.getItem("scp_logs")) {
+    logs = JSON.parse(localStorage.getItem("scp_logs"));
+}
+function saveLogs() { localStorage.setItem("scp_logs", JSON.stringify(logs)); }
+function addLog(type, user, extra="") {
+    const time = new Date().toLocaleString();
+    logs.push(`[${time}] [${type}] UŻYTKOWNIK: ${user} ${extra}`);
+    saveLogs();
+    refreshLogs();
+}
+function refreshLogs() {
+    document.getElementById("logs").innerHTML = logs.join("<br>");
+}
+
+// --- RAPORTY ---
+let reports = [];
+if (localStorage.getItem("scp_reports")) {
+    reports = JSON.parse(localStorage.getItem("scp_reports"));
+}
+function saveReports() { localStorage.setItem("scp_reports", JSON.stringify(reports)); }
+
+// --- ZADANIA ---
+let tasks = [];
+if (localStorage.getItem("scp_tasks")) {
+    tasks = JSON.parse(localStorage.getItem("scp_tasks"));
+}
+function saveTasks() { localStorage.setItem("scp_tasks", JSON.stringify(tasks)); }
+
+// --- WIADOMOŚCI ---
+let messages = [];
+if (localStorage.getItem("scp_messages")) {
+    messages = JSON.parse(localStorage.getItem("scp_messages"));
+}
+function saveMessages() { localStorage.setItem("scp_messages", JSON.stringify(messages)); }
+
+// --- KONTROLA CZASU ---
+let timeEntries = [];
+if (localStorage.getItem("scp_time")) {
+    timeEntries = JSON.parse(localStorage.getItem("scp_time"));
+}
+function saveTime() { localStorage.setItem("scp_time", JSON.stringify(timeEntries)); }
+
+// --- ARCHIWUM SCP (proste przykłady) ---
+const scpObjects = [
+    { id: "SCP-173", class: "Euclid", level: 2, title: "Rzeźba", desc: "Obiekt, który porusza się, gdy nie jest obserwowany." },
+    { id: "SCP-106", class: "Keter", level: 4, title: "Stary Człowiek", desc: "Humanoidalna istota zdolna do przechodzenia przez materię." },
+    { id: "SCP-682", class: "Keter", level: 5, title: "Trudne do zniszczenia gówno", desc: "Wysoce agresywna, adaptacyjna istota." },
+    { id: "SCP-999", class: "Safe", level: 1, title: "Kleista istota", desc: "Przyjazna, poprawiająca nastrój galaretowata masa." }
+];
+
+// --- PROCEDURY (przykłady) ---
+const procedures = [
+    { id: "PROC-173-A", level: 2, title: "Procedura obserwacji SCP-173", text: "Co najmniej trzech pracowników musi utrzymywać kontakt wzrokowy..." },
+    { id: "PROC-106-LCK", level: 4, title: "Procedura lokacji SCP-106", text: "W przypadku naruszenia zabezpieczeń natychmiast uruchomić procedurę luring..." },
+    { id: "PROC-682-T", level: 5, title: "Procedura neutralizacji SCP-682", text: "Wszelkie próby neutralizacji muszą być zatwierdzone przez O5..." }
+];
+
+// --- BOOT ---
+const bootLines = [
+    "SCP FOUNDATION OS v4.2.1",
+    "Inicjalizacja jądra systemowego...",
+    "Ładowanie protokołów SITE‑64...",
+    "Nawiązywanie bezpiecznego połączenia...",
+    "Weryfikacja poziomów dostępu...",
+    "System gotowy.",
+    "",
+    "Naciśnij dowolny klawisz, aby kontynuować_"
+];
+let bootIndex = 0;
+function typeBoot() {
+    if (bootIndex < bootLines.length) {
+        document.getElementById("boot").innerHTML += bootLines[bootIndex] + "\n";
+        bootIndex++;
+        setTimeout(typeBoot, 300);
+    } else {
+        document.getElementById("boot").innerHTML += '<span class="cursor"></span>';
+        document.addEventListener("keydown", showTerminal);
+        document.addEventListener("click", showTerminal);
+    }
+}
+function showTerminal() {
+    document.getElementById("boot").style.display = "none";
+    document.getElementById("terminal-wrapper").style.display = "block";
+}
+typeBoot();
+
+// --- STAN ---
+let currentUser = null;
+
+// --- SIDEBAR ---
+function toggleSidebar() {
+    const sb = document.getElementById("sidebar");
+    sb.classList.toggle("open");
+}
+function setActiveSidebar(id) {
+    const items = document.querySelectorAll("#sidebar .sidebar-item");
+    items.forEach(i => i.classList.remove("active"));
+    const map = ["card","db","write","archive","scp","proc","time","tasks","comm","profile","hr","acl","logs","admin"];
+    const index = map.indexOf(id);
+    if (index >= 0) items[index].classList.add("active");
+}
+function hideAllPanels() {
+    const ids = [
+        "cardPanel","dbPanel","writePanel","archivePanel","scpPanel","procPanel",
+        "timePanel","tasksPanel","commPanel","profilePanel","hrPanel","aclPanel",
+        "logsPanel","adminPanel"
+    ];
+    ids.forEach(id => document.getElementById(id).style.display = "none");
+}
+function showSection(section) {
+    if (!currentUser) return;
+    hideAllPanels();
+    if (section === "card") document.getElementById("cardPanel").style.display = "block";
+    if (section === "db") { document.getElementById("dbPanel").style.display = "block"; refreshReportsView(); }
+    if (section === "write") document.getElementById("writePanel").style.display = "block";
+    if (section === "archive") { document.getElementById("archivePanel").style.display = "block"; refreshArchiveView(); }
+    if (section === "scp") { document.getElementById("scpPanel").style.display = "block"; refreshScpView(); }
+    if (section === "proc") { document.getElementById("procPanel").style.display = "block"; refreshProcView(); }
+    if (section === "time") { document.getElementById("timePanel").style.display = "block"; refreshTimeView(); }
+    if (section === "tasks") { document.getElementById("tasksPanel").style.display = "block"; refreshTasksView(); }
+    if (section === "comm") { document.getElementById("commPanel").style.display = "block"; refreshCommView(); }
+    if (section === "profile") { document.getElementById("profilePanel").style.display = "block"; refreshProfileView(); }
+    if (section === "hr") { document.getElementById("hrPanel").style.display = "block"; refreshHrView(); }
+    if (section === "acl") {
+        if (currentUser.level === "Omni") {
+            document.getElementById("aclPanel").style.display = "block";
+            refreshAclUsers();
+        }
+    }
+    if (section === "logs") { document.getElementById("logsPanel").style.display = "block"; refreshLogs(); }
+    if (section === "admin") {
+        if (currentUser.level === "5" || currentUser.level === "Omni") {
+            document.getElementById("adminPanel").style.display = "block";
+        }
+    }
+    setActiveSidebar(section);
+    toggleSidebar();
+}
+
+// --- LOGOWANIE ---
+function login() {
+    const u = document.getElementById("username").value;
+    const p = document.getElementById("password").value;
+    const found = users.find(x => x.username === u);
+    if (!found) {
+        addLog("NIEUDANE LOGOWANIE — NIEZNANY UŻYTKOWNIK", u);
+        document.getElementById("error").innerText = "ODMOWA DOSTĘPU";
+        return;
+    }
+    if (found.password !== p) {
+        addLog("NIEUDANE LOGOWANIE — BŁĘDNE HASŁO", u);
+        document.getElementById("error").innerText = "ODMOWA DOSTĘPU";
+        return;
+    }
+    currentUser = found;
+    currentUser.lastLogin = new Date().toLocaleString();
+    saveUsers();
+    addLog("POMYŚLNE LOGOWANIE", u);
+    document.getElementById("login-screen").style.display = "none";
+    document.getElementById("panel").style.display = "block";
+    document.getElementById("user").innerText = found.username;
+    document.getElementById("clearance").innerText = found.level;
+    document.getElementById("dept").innerText = found.type;
+    document.getElementById("cardID").innerText = "ID-" + Math.floor(Math.random()*999999);
+    if (found.level === "5" || found.level === "Omni") {
+        document.getElementById("adminPanel").style.display = "block";
+        document.getElementById("taskAdmin").style.display = "block";
+    }
+    refreshList();
+    refreshLogs();
+    refreshReportsView();
+    updateClassificationOptions();
+    refreshScpView();
+    refreshProcView();
+    refreshTimeView();
+    refreshTasksView();
+    refreshCommTargets();
+    refreshCommView();
+    refreshProfileView();
+    refreshHrView();
+    showSection("card");
+}
+
+// --- BLOKADA WYŻSZEJ KLASYFIKACJI W UI ---
+function updateClassificationOptions() {
+    if (!currentUser) return;
+    const userLevelNum = levelToNum(currentUser.level);
+    const select = document.getElementById("reportClass");
+    for (let i = 0; i < select.options.length; i++) {
+        const opt = select.options[i];
+        const optLevel = levelToNum(opt.value);
+        opt.disabled = optLevel > userLevelNum;
+    }
+}
+
+// --- DODAWANIE UŻYTKOWNIKA ---
+function addUser() {
+    if (!currentUser) return;
+    const newU = document.getElementById("newUser").value.trim();
+    const newP = document.getElementById("newPass").value.trim();
+    const newL = document.getElementById("newLevel").value;
+    const newT = document.getElementById("newType").value;
+    const adminError = document.getElementById("adminError");
+    adminError.innerText = "";
+    if (!newU || !newP) {
+        adminError.innerText = "Uzupełnij nazwę użytkownika i hasło.";
+        return;
+    }
+    if (users.find(u => u.username === newU)) {
+        adminError.innerText = "Taki użytkownik już istnieje.";
+        return;
+    }
+    const adminLevel = currentUser.level;
+    const adminLevelNum = levelToNum(adminLevel);
+    const newLevelNum = levelToNum(newL);
+    if (adminLevel !== "Omni" && newLevelNum > adminLevelNum) {
+        adminError.innerText = "Nie możesz tworzyć użytkownika o wyższym poziomie dostępu niż Twój.";
+        return;
+    }
+    if (adminLevel === "5") {
+        if (newL === "5" || newL === "Omni") {
+            adminError.innerText = "Poziom 5 nie może tworzyć użytkowników Poziom‑5 ani Omni.";
+            return;
+        }
+        if (newT !== currentUser.type) {
+            adminError.innerText = "Poziom 5 może dodawać użytkowników tylko do swojego oddziału.";
+            return;
+        }
+    }
+    if (adminLevelNum < 5) {
+        if (newL === "5" || newL === "Omni") {
+            adminError.innerText = "Tylko Poziom‑5 lub Omni mogą tworzyć użytkowników Poziom‑5 / Omni.";
+            return;
+        }
+        if (newT !== currentUser.type) {
+            adminError.innerText = "Możesz dodawać użytkowników tylko do swojego oddziału.";
+            return;
+        }
+    }
+    users.push({ username: newU, password: newP, level: newL, type: newT, lastLogin: null });
+    saveUsers();
+    refreshList();
+    refreshCommTargets();
+    refreshHrView();
+    refreshAclUsers();
+    document.getElementById("newUser").value = "";
+    document.getElementById("newPass").value = "";
+    addLog("NOWY UŻYTKOWNIK", currentUser.username, `-> ${newU} (P${newL}, ${newT})`);
+}
+
+// --- LISTA UŻYTKOWNIKÓW ---
+function refreshList() {
+    const list = document.getElementById("userList");
+    list.innerHTML = "";
+    users.forEach(u => {
+        const li = document.createElement("li");
+        li.innerText = `${u.username} | Poziom: ${u.level} | Oddział: ${u.type}`;
+        list.appendChild(li);
+    });
+    saveUsers();
+}
+
+// --- RAPORTY — TWORZENIE + SZYFROWANIE ---
+function createReport() {
+    if (!currentUser) return;
+    const title = document.getElementById("reportTitle").value.trim();
+    const content = document.getElementById("reportContent").value.trim();
+    const classification = document.getElementById("reportClass").value;
+    const encPass = document.getElementById("reportEncPass").value.trim();
+    const filesInput = document.getElementById("reportFiles");
+    const reportError = document.getElementById("reportError");
+    reportError.style.color = "red";
+    reportError.innerText = "";
+    if (!title || !content) {
+        reportError.innerText = "Tytuł i treść raportu są wymagane.";
+        return;
+    }
+    const userLevelNum = levelToNum(currentUser.level);
+    const classNum = levelToNum(classification);
+    if (userLevelNum < classNum) {
+        reportError.innerText = "Nie możesz utworzyć raportu o wyższym poziomie klasyfikacji niż Twój poziom dostępu.";
+        return;
+    }
+    const attachments = [];
+    if (filesInput.files && filesInput.files.length > 0) {
+        for (let i = 0; i < filesInput.files.length; i++) {
+            attachments.push({ name: filesInput.files[i].name });
+        }
+    }
+    let encrypted = false;
+    let encHash = null;
+    if (classNum >= 4 && encPass) {
+        encrypted = true;
+        encHash = btoa(encPass);
+    }
+    const report = {
+        id: "R-" + Math.floor(Math.random()*999999),
+        title: title,
+        content: encrypted ? btoa(content) : content,
+        encrypted: encrypted,
+        encHash: encHash,
+        classification: classification,
+        department: currentUser.type,
+        author: currentUser.username,
+        authorLevel: currentUser.level,
+        date: new Date().toLocaleString(),
+        attachments: attachments
+    };
+    reports.push(report);
+    saveReports();
+    document.getElementById("reportTitle").value = "";
+    document.getElementById("reportContent").value = "";
+    document.getElementById("reportFiles").value = "";
+    document.getElementById("reportEncPass").value = "";
+    refreshReportsView();
+    reportError.style.color = "#00ff9d";
+    reportError.innerText = "Raport zapisany.";
+    addLog("NOWY RAPORT", currentUser.username, `-> ${report.id} (${classification})`);
+}
+
+// --- RAPORTY — WIDOCZNOŚĆ ---
+function canSeeReport(report, user) {
+    const userLevel = levelToNum(user.level);
+    const classLevel = levelToNum(report.classification);
+    if (userLevel < classLevel) return false;
+    if (user.level === "Omni") return true;
+    if (userLevel <= 2) return report.author === user.username;
+    if (userLevel >= 3 && userLevel <= 5) return report.department === user.type;
+    return false;
+}
+function refreshReportsView() {
+    const box = document.getElementById("reportsList");
+    box.innerHTML = "";
+    if (!currentUser) return;
+    reports.forEach(r => {
+        if (!canSeeReport(r, currentUser)) return;
+        const div = document.createElement("div");
+        div.className = "report-item";
+        const title = document.createElement("div");
+        title.className = "report-title";
+        title.innerText = `${r.id} — ${r.title}`;
+        div.appendChild(title);
+        const meta = document.createElement("div");
+        meta.className = "report-meta";
+        meta.innerText =
+            `Autor: ${r.author} (Poziom ${r.authorLevel}) | Oddział: ${r.department} | Klasyfikacja: ${r.classification} | Data: ${r.date}` +
+            (r.encrypted ? " | [ZASZYFROWANY]" : "");
+        div.appendChild(meta);
+        const btn = document.createElement("button");
+        btn.innerText = "Otwórz raport";
+        btn.onclick = () => openReportModal(r.id);
+        div.appendChild(btn);
+        box.appendChild(div);
+    });
+}
+
+// --- ARCHIWUM RAPORTÓW ---
+function refreshArchiveView() {
+    const box = document.getElementById("archiveList");
+    box.innerHTML = "";
+    if (!currentUser) return;
+    const filter = document.getElementById("archiveFilter").value.trim().toLowerCase();
+    reports.forEach(r => {
+        if (!canSeeReport(r, currentUser)) return;
+        const text = `${r.id} ${r.author} ${r.department} ${r.classification}`.toLowerCase();
+        if (filter && !text.includes(filter)) return;
+        const div = document.createElement("div");
+        div.className = "report-item";
+        const title = document.createElement("div");
+        title.className = "report-title";
+        title.innerText = `${r.id} — ${r.title}`;
+        div.appendChild(title);
+        const meta = document.createElement("div");
+        meta.className = "report-meta";
+        meta.innerText =
+            `Autor: ${r.author} | Oddział: ${r.department} | Klasyfikacja: ${r.classification} | Data: ${r.date}`;
+        div.appendChild(meta);
+        const btn = document.createElement("button");
+        btn.innerText = "Otwórz raport";
+        btn.onclick = () => openReportModal(r.id);
+        div.appendChild(btn);
+        box.appendChild(div);
+    });
+}
+
+// --- MODAL RAPORTU + DESZYFROWANIE ---
+function openReportModal(id) {
+    const r = reports.find(x => x.id === id);
+    if (!r || !currentUser) return;
+    if (!canSeeReport(r, currentUser)) return;
+    let content = r.content;
+    if (r.encrypted) {
+        const pass = prompt("Ten raport jest zaszyfrowany. Podaj hasło:");
+        if (!pass) return;
+        if (btoa(pass) !== r.encHash) {
+            alert("Błędne hasło.");
+            addLog("BŁĘDNE HASŁO DO RAPORTU", currentUser.username, `-> ${r.id}`);
+            return;
+        }
+        content = atob(r.content);
+    }
+    document.getElementById("modalTitle").innerText = `${r.id} — ${r.title}`;
+    document.getElementById("modalMeta").innerText =
+        `Autor: ${r.author} (Poziom ${r.authorLevel}) | Oddział: ${r.department} | Klasyfikacja: ${r.classification} | Data: ${r.date}`;
+    document.getElementById("modalContent").innerText = content;
+    if (r.attachments && r.attachments.length > 0) {
+        document.getElementById("modalAttachments").innerText =
+            "Załączniki: " + r.attachments.map(a => a.name).join(", ");
+    } else {
+        document.getElementById("modalAttachments").innerText = "Załączniki: brak";
+    }
+    document.getElementById("reportModalOverlay").style.display = "flex";
+}
+function closeReportModal() {
+    document.getElementById("reportModalOverlay").style.display = "none";
+}
+
+// --- ARCHIWUM SCP ---
+function refreshScpView() {
+    const box = document.getElementById("scpList");
+    box.innerHTML = "";
+    if (!currentUser) return;
+    const userLevel = levelToNum(currentUser.level);
+    scpObjects.forEach(o => {
+        if (userLevel < o.level && currentUser.level !== "Omni") return;
+        const div = document.createElement("div");
+        div.style.borderBottom = "1px solid #ba55d3";
+        div.style.padding = "4px 0";
+        div.innerHTML =
+            `<b>${o.id}</b> [${o.class}] (min. P${o.level})<br><i>${o.title}</i><br>${o.desc}`;
+        box.appendChild(div);
+    });
+}
+
+// --- PROCEDURY ---
+function refreshProcView() {
+    const box = document.getElementById("procList");
+    box.innerHTML = "";
+    if (!currentUser) return;
+    const userLevel = levelToNum(currentUser.level);
+    procedures.forEach(p => {
+        if (userLevel < p.level && currentUser.level !== "Omni") return;
+        const div = document.createElement("div");
+        div.style.borderBottom = "1px solid #ff69b4";
+        div.style.padding = "4px 0";
+        div.innerHTML =
+            `<b>${p.id}</b> (min. P${p.level})<br><i>${p.title}</i><br>${p.text}`;
+        box.appendChild(div);
+    });
+}
+
+// --- KONTROLA CZASU ---
+function registerTime(type) {
+    if (!currentUser) return;
+    const entry = {
+        user: currentUser.username,
+        type: type,
+        time: new Date().toLocaleString()
+    };
+    timeEntries.push(entry);
+    saveTime();
+    refreshTimeView();
+    addLog("KONTROLA CZASU", currentUser.username, `-> ${type}`);
+}
+function refreshTimeView() {
+    const box = document.getElementById("timeLog");
+    box.innerHTML = "";
+    if (!currentUser) return;
+    const my = timeEntries.filter(e => e.user === currentUser.username);
+    my.slice().reverse().forEach(e => {
+        const div = document.createElement("div");
+        div.innerText = `[${e.time}] ${e.type === "IN" ? "WEJŚCIE" : "WYJŚCIE"}`;
+        box.appendChild(div);
+    });
+}
+
+// --- ZADANIA ---
+function refreshTaskTargets() {
+    const sel = document.getElementById("taskUser");
+    if (!sel) return;
+    sel.innerHTML = "";
+    users.forEach(u => {
+        const opt = document.createElement("option");
+        opt.value = u.username;
+        opt.innerText = `${u.username} (P${u.level}, ${u.type})`;
+        sel.appendChild(opt);
+    });
+}
+function assignTask() {
+    if (!currentUser) return;
+    if (!(currentUser.level === "5" || currentUser.level === "Omni")) return;
+    const user = document.getElementById("taskUser").value;
+    const text = document.getElementById("taskText").value.trim();
+    if (!user || !text) return;
+    tasks.push({
+        id: "T-" + Math.floor(Math.random()*999999),
+        to: user,
+        from: currentUser.username,
+        text: text,
+        done: false,
+        date: new Date().toLocaleString()
+    });
+    saveTasks();
+    document.getElementById("taskText").value = "";
+    refreshTasksView();
+    addLog("NOWE ZADANIE", currentUser.username, `-> ${user}`);
+}
+function refreshTasksView() {
+    if (!currentUser) return;
+    refreshTaskTargets();
+    const box = document.getElementById("myTasks");
+    box.innerHTML = "";
+    const my = tasks.filter(t => t.to === currentUser.username);
+    if (my.length === 0) {
+        box.innerText = "Brak przydzielonych zadań.";
+        return;
+    }
+    my.slice().reverse().forEach(t => {
+        const div = document.createElement("div");
+        div.style.borderBottom = "1px solid #ffa500";
+        div.style.padding = "4px 0";
+        div.innerHTML =
+            `<b>${t.id}</b> od ${t.from} (${t.date})<br>${t.text}<br>Status: ${t.done ? "WYKONANE" : "OCZEKUJE"}`;
+        box.appendChild(div);
+    });
+}
+
+// --- KOMUNIKACJA ---
+function refreshCommTargets() {
+    const sel = document.getElementById("msgTo");
+    if (!sel) return;
+    sel.innerHTML = "";
+    users.forEach(u => {
+        if (!currentUser) return;
+        if (u.username === currentUser.username) return;
+        const opt = document.createElement("option");
+        opt.value = u.username;
+        opt.innerText = `${u.username} (P${u.level}, ${u.type})`;
+        sel.appendChild(opt);
+    });
+}
+function sendMessage() {
+    if (!currentUser) return;
+    const to = document.getElementById("msgTo").value;
+    const text = document.getElementById("msgText").value.trim();
+    const msgError = document.getElementById("msgError");
+    msgError.innerText = "";
+    if (!to || !text) {
+        msgError.innerText = "Wybierz odbiorcę i wpisz treść.";
+        return;
+    }
+    messages.push({
+        id: "M-" + Math.floor(Math.random()*999999),
+        from: currentUser.username,
+        to: to,
+        text: text,
+        date: new Date().toLocaleString()
+    });
+    saveMessages();
+    document.getElementById("msgText").value = "";
+    refreshCommView();
+    addLog("WIADOMOŚĆ", currentUser.username, `-> ${to}`);
+}
+function refreshCommView() {
+    if (!currentUser) return;
+    const inbox = document.getElementById("inbox");
+    const outbox = document.getElementById("outbox");
+    inbox.innerHTML = "";
+    outbox.innerHTML = "";
+    const inMsgs = messages.filter(m => m.to === currentUser.username);
+    const outMsgs = messages.filter(m => m.from === currentUser.username);
+    inMsgs.slice().reverse().forEach(m => {
+        const div = document.createElement("div");
+        div.style.borderBottom = "1px solid #1e90ff";
+        div.style.padding = "4px 0";
+        div.innerHTML = `<b>${m.id}</b> od ${m.from} (${m.date})<br>${m.text}`;
+        inbox.appendChild(div);
+    });
+    outMsgs.slice().reverse().forEach(m => {
+        const div = document.createElement("div");
+        div.style.borderBottom = "1px solid #1e90ff";
+        div.style.padding = "4px 0";
+        div.innerHTML = `<b>${m.id}</b> do ${m.to} (${m.date})<br>${m.text}`;
+        outbox.appendChild(div);
+    });
+}
+
+// --- PROFIL UŻYTKOWNIKA ---
+function refreshProfileView() {
+    if (!currentUser) return;
+    document.getElementById("profName").innerText = currentUser.username;
+    document.getElementById("profLevel").innerText = currentUser.level;
+    document.getElementById("profDept").innerText = currentUser.type;
+    const myReports = reports.filter(r => r.author === currentUser.username).length;
+    const myTasksCount = tasks.filter(t => t.to === currentUser.username).length;
+    document.getElementById("profReports").innerText = myReports;
+    document.getElementById("profTasks").innerText = myTasksCount;
+    document.getElementById("profLastLogin").innerText = currentUser.lastLogin || "brak danych";
+}
+
+// --- ZARZĄDZANIE PERSONELEM ---
+function refreshHrView() {
+    const box = document.getElementById("hrList");
+    if (!box) return;
+    box.innerHTML = "";
+    if (!currentUser) return;
+    if (!(currentUser.level === "5" || currentUser.level === "Omni")) {
+        box.innerText = "Brak uprawnień.";
+        return;
+    }
+    users.forEach(u => {
+        const div = document.createElement("div");
+        div.style.borderBottom = "1px solid #ff1493";
+        div.style.padding = "4px 0";
+        const repCount = reports.filter(r => r.author === u.username).length;
+        const taskCount = tasks.filter(t => t.to === u.username).length;
+        div.innerHTML =
+            `<b>${u.username}</b> (P${u.level}, ${u.type})<br>` +
+            `Raporty: ${repCount} | Zadania: ${taskCount} | Ostatnie logowanie: ${u.lastLogin || "brak"}`;
+        box.appendChild(div);
+    });
+}
+
+// --- KONTROLA UPRAWNIEŃ ---
+function refreshAclUsers() {
+    const sel = document.getElementById("aclUser");
+    if (!sel) return;
+    sel.innerHTML = "";
+    users.forEach(u => {
+        const opt = document.createElement("option");
+        opt.value = u.username;
+        opt.innerText = `${u.username} (P${u.level}, ${u.type})`;
+        sel.appendChild(opt);
+    });
+}
+function applyAcl() {
+    if (!currentUser || currentUser.level !== "Omni") {
+        document.getElementById("aclError").innerText = "Tylko Omni może zmieniać uprawnienia.";
+        return;
+    }
+    const userName = document.getElementById("aclUser").value;
+    const newLevel = document.getElementById("aclLevel").value;
+    const newType = document.getElementById("aclType").value;
+    const aclError = document.getElementById("aclError");
+    aclError.innerText = "";
+    const u = users.find(x => x.username === userName);
+    if (!u) {
+        aclError.innerText = "Nie znaleziono użytkownika.";
+        return;
+    }
+    u.level = newLevel;
+    u.type = newType;
+    saveUsers();
+    refreshList();
+    refreshHrView();
+    refreshCommTargets();
+    refreshProfileView();
+    aclError.style.color = "#00ff9d";
+    aclError.innerText = "Zmieniono uprawnienia.";
+    addLog("ZMIANA UPRAWNIEŃ", currentUser.username, `-> ${userName} (P${newLevel}, ${newType})`);
+}
+</script>
+
+</body>
+</html>
